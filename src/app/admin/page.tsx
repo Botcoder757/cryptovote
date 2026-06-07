@@ -142,22 +142,31 @@ export default function AdminPage() {
       const sk = deserializePrivateKey(skObj);
 
       // Tally per candidate using homomorphic addition
-      const results: Record<string, number> = {};
-      for (const candidate of activeElection.candidates) {
-        const candidateVotes = votes.filter((v: Record<string, unknown>) => v.candidateId === candidate.id);
-        if (candidateVotes.length === 0) {
-          results[candidate.id] = 0;
-          continue;
-        }
-        const ciphertexts = candidateVotes.map((v: Record<string, unknown>) => BigInt(v.ciphertext as string));
-        const { combined } = homomorphicAdd(ciphertexts, {
-          n: BigInt(pk.n),
-          g: BigInt(pk.g),
-          nSquared: BigInt(pk.nSquared),
-        });
-        const { plaintext } = decrypt(combined, sk);
-        results[candidate.id] = Number(plaintext);
-      }
+      // Tally per candidate using homomorphic addition
+const results: Record<string, number> = {};
+for (const candidate of activeElection.candidates) {
+  const ciphertexts: bigint[] = [];
+
+  for (const v of votes as Record<string, unknown>[]) {
+    const allCiphertexts = JSON.parse(v.allCiphertexts as string) as Record<string, string>;
+    if (allCiphertexts[candidate.id]) {
+      ciphertexts.push(BigInt(allCiphertexts[candidate.id]));
+    }
+  }
+
+  if (ciphertexts.length === 0) {
+    results[candidate.id] = 0;
+    continue;
+  }
+
+  const { combined } = homomorphicAdd(ciphertexts, {
+    n: BigInt(pk.n),
+    g: BigInt(pk.g),
+    nSquared: BigInt(pk.nSquared),
+  });
+  const { plaintext } = decrypt(combined, sk);
+  results[candidate.id] = Number(plaintext);
+}
 
       await closeElection(activeElection.id, results);
       setTallyResults(results);

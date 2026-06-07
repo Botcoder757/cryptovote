@@ -78,10 +78,6 @@ export default function HomePage() {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // Particle canvas
   useEffect(() => {
     const canvas = canvasRef.current;
