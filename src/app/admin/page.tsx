@@ -487,9 +487,9 @@ for (const candidate of activeElection.candidates) {
                       </p>
                     </div>
 
-                    <button onClick={() => router.push("/results")} style={{ ...styles.primaryBtn, marginTop: 16 }}>
-                      View Full Results Dashboard →
-                    </button>
+                    <button onClick={async () => { await new Promise(r => setTimeout(r, 2000)); router.push("/results"); }} style={{ ...styles.primaryBtn, marginTop: 16 }}>
+  View Full Results Dashboard →
+</button>
                   </div>
                 )}
               </>
