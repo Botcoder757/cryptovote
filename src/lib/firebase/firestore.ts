@@ -30,22 +30,28 @@ export async function getActiveElection() {
 
 // Returns active election first, then most recent closed one
 export async function getLatestElection() {
-  const q1 = query(collection(db, "elections"), where("status", "==", "open"));
-  const s1 = await getDocs(q1);
-  if (!s1.empty) return { id: s1.docs[0].id, ...s1.docs[0].data() };
+  // Retry up to 8 times with 1s delay to handle Firestore propagation delay
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const q1 = query(collection(db, "elections"), where("status", "==", "open"));
+    const s1 = await getDocs(q1);
+    if (!s1.empty) return { id: s1.docs[0].id, ...s1.docs[0].data() };
 
-  // No orderBy — avoids needing composite index
-  const q2 = query(collection(db, "elections"), where("status", "==", "closed"));
-  const s2 = await getDocs(q2);
-  if (s2.empty) return null;
+    const q2 = query(collection(db, "elections"), where("status", "==", "closed"));
+    const s2 = await getDocs(q2);
+    if (!s2.empty) {
+      const sorted = s2.docs.sort((a, b) => {
+        const aTime = (a.data().closedAt?.seconds ?? 0);
+        const bTime = (b.data().closedAt?.seconds ?? 0);
+        return bTime - aTime;
+      });
+      return { id: sorted[0].id, ...sorted[0].data() };
+    }
 
-  // Sort in JS instead
-  const sorted = s2.docs.sort((a, b) => {
-    const aTime = (a.data().closedAt?.seconds ?? 0);
-    const bTime = (b.data().closedAt?.seconds ?? 0);
-    return bTime - aTime;
-  });
-  return { id: sorted[0].id, ...sorted[0].data() };
+    // Nothing found yet — wait and retry
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  return null;
 }
 
 export async function getElection(id: string) {
@@ -76,6 +82,7 @@ export async function submitVote(data: {
     timestamp: serverTimestamp(),
   });
 }
+
 export async function hasVoted(electionId: string, voterId: string): Promise<boolean> {
   const q = query(
     collection(db, "votes"),
