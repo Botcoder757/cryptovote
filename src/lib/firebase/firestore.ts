@@ -34,16 +34,18 @@ export async function getLatestElection() {
   const s1 = await getDocs(q1);
   if (!s1.empty) return { id: s1.docs[0].id, ...s1.docs[0].data() };
 
-  const q2 = query(
-    collection(db, "elections"),
-    where("status", "==", "closed"),
-    orderBy("closedAt", "desc"),
-    limit(1)
-  );
+  // No orderBy — avoids needing composite index
+  const q2 = query(collection(db, "elections"), where("status", "==", "closed"));
   const s2 = await getDocs(q2);
-  if (!s2.empty) return { id: s2.docs[0].id, ...s2.docs[0].data() };
+  if (s2.empty) return null;
 
-  return null;
+  // Sort in JS instead
+  const sorted = s2.docs.sort((a, b) => {
+    const aTime = (a.data().closedAt?.seconds ?? 0);
+    const bTime = (b.data().closedAt?.seconds ?? 0);
+    return bTime - aTime;
+  });
+  return { id: sorted[0].id, ...sorted[0].data() };
 }
 
 export async function getElection(id: string) {
