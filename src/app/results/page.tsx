@@ -40,12 +40,21 @@ export default function ResultsPage() {
   async function loadData() {
   setLoadingData(true);
   try {
-    const e = await getLatestElection() as Election | null;
+    let e = await getLatestElection() as Election | null;
+    
+    // Retry up to 5 times if election is closed but results not yet written
+    if (e && e.status === "closed" && !e.results) {
+      for (let i = 0; i < 5; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        e = await getLatestElection() as Election | null;
+        if (e?.results) break;
+      }
+    }
+
     if (e) {
       setElection(e);
       const v = await getVotesForElection(e.id);
       setVotes(v as typeof votes);
-      // for closed elections use sum from results, not vote collection count
       if (e.status === "closed" && e.results) {
         const sum = Object.values(e.results as Record<string, number>).reduce((a, b) => a + b, 0);
         setVoteCount(sum);
