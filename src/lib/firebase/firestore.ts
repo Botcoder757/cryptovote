@@ -34,7 +34,12 @@ export async function getLatestElection() {
   const s1 = await getDocs(q1);
   if (!s1.empty) return { id: s1.docs[0].id, ...s1.docs[0].data() };
 
-  const q2 = query(collection(db, "elections"), where("status", "==", "closed"));
+  const q2 = query(
+    collection(db, "elections"),
+    where("status", "==", "closed"),
+    orderBy("closedAt", "desc"),
+    limit(1)
+  );
   const s2 = await getDocs(q2);
   if (!s2.empty) return { id: s2.docs[0].id, ...s2.docs[0].data() };
 
